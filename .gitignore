@@ -1,0 +1,29 @@
+# Compilados y build
+target/
+*.class
+*.jar
+*.war
+
+# Eclipse / Spring Tool Suite
+.metadata/
+.settings/
+.classpath
+.project
+*.launch
+
+# IntelliJ
+.idea/
+*.iml
+
+# Variables de entorno
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
