@@ -27,3 +27,6 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+.claude/memory/personal.md
+.claude/settings.local.json
+.claude/skills/**/__pycache__/
