@@ -27,7 +27,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final JwtAuthFilter      jwtAuthFilter;
+    private final JwtAuthEntryPoint  jwtAuthEntryPoint;
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/api/auth/login",
@@ -54,6 +55,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf().disable()
+            .exceptionHandling()
+                .authenticationEntryPoint(jwtAuthEntryPoint)
+            .and()
             .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
