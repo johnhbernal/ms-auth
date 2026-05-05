@@ -16,3 +16,7 @@ Shared team memory. Committed to git. Updated automatically by /checkpoint.
 
 ## Workarounds
 <!-- Non-obvious solutions and why they exist -->
+
+## Spec: integration-tests 2026-05-05
+
+`@SpringBootTest` + `@AutoConfigureMockMvc` integration tests for the full filter chain and auth endpoints. Single test class `AuthControllerIntegrationTest` with 11 tests. Uses `@ActiveProfiles({"dev","test"})` to activate DataInitializer seed data and load `application-test.properties`. `@MockBean PracticaServiceClient` prevents Feign from calling ms-practica during login. Covers: login (happy path, wrong password, blank fields), renew, validate, and JWT filter chain on a protected endpoint (no token→401, valid token→not 401, tampered→401).
