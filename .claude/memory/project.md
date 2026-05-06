@@ -17,6 +17,10 @@ Shared team memory. Committed to git. Updated automatically by /checkpoint.
 ## Workarounds
 <!-- Non-obvious solutions and why they exist -->
 
+## Spec: role-based-access 2026-05-06
+
+`@PreAuthorize("hasRole('ADMIN')")` on `GET /api/users`, `@PreAuthorize("isAuthenticated()")` on `GET /api/users/me`. `JwtAccessDeniedHandler` returns `{"code":"403","description":"Forbidden","data":null}` for filter-chain denials. `GlobalExceptionHandler` handles `AccessDeniedException` from `@PreAuthorize` (MVC layer) — the two handlers cover different exception paths. `UserSummaryDto` exposes users without `passwordHash`.
+
 ## Spec: github-actions-ci 2026-05-06
 
 Three-job GitHub Actions pipeline (build → test → docker-build) triggered on push/PR to `main`. No secrets required — JWT defaults in `application.properties` cover test runs. Docker image built but not pushed.
