@@ -114,6 +114,62 @@ class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.role").value("READONLY"));
     }
 
+    // ── POST /api/users (register) ────────────────────────────────────────────
+
+    @Test
+    void register_noToken_returns401() throws Exception {
+        mockMvc.perform(post(USERS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"newuser1\",\"password\":\"Secret1!\",\"fullName\":\"New\",\"email\":\"new1@test.com\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("401"));
+    }
+
+    @Test
+    void register_userToken_returns403() throws Exception {
+        mockMvc.perform(post(USERS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + userToken)
+                        .content("{\"username\":\"newuser2\",\"password\":\"Secret1!\",\"fullName\":\"New\",\"email\":\"new2@test.com\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("403"));
+    }
+
+    @Test
+    void register_adminToken_validRequest_returns201() throws Exception {
+        mockMvc.perform(post(USERS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"username\":\"newuser3\",\"password\":\"Secret1!\",\"fullName\":\"New User\",\"email\":\"new3@test.com\",\"role\":\"USER\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("201"))
+                .andExpect(jsonPath("$.data.username").value("newuser3"))
+                .andExpect(jsonPath("$.data.role").value("USER"))
+                .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
+    }
+
+    @Test
+    void register_duplicateUsername_returns409() throws Exception {
+        mockMvc.perform(post(USERS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"username\":\"admin\",\"password\":\"Secret1!\",\"fullName\":\"Dup\",\"email\":\"dup1@test.com\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("409"))
+                .andExpect(jsonPath("$.description").value("Username already exists"));
+    }
+
+    @Test
+    void register_duplicateEmail_returns409() throws Exception {
+        mockMvc.perform(post(USERS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .content("{\"username\":\"uniqueuser\",\"password\":\"Secret1!\",\"fullName\":\"Dup\",\"email\":\"admin@practica.com\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("409"))
+                .andExpect(jsonPath("$.description").value("Email already registered"));
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private String login(String username, String password) throws Exception {
