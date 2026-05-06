@@ -33,8 +33,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter     jwtAuthFilter;
-    private final JwtAuthEntryPoint jwtAuthEntryPoint;
+    private final JwtAuthFilter          jwtAuthFilter;
+    private final JwtAuthEntryPoint      jwtAuthEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Value("${app.cors.allowed-origins:*}")
     private String allowedOrigins;
@@ -68,6 +69,7 @@ public class SecurityConfig {
             .csrf().disable()
             .exceptionHandling()
                 .authenticationEntryPoint(jwtAuthEntryPoint)
+                .accessDeniedHandler(jwtAccessDeniedHandler)
             .and()
             .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
