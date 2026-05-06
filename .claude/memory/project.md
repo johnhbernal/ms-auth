@@ -17,6 +17,10 @@ Shared team memory. Committed to git. Updated automatically by /checkpoint.
 ## Workarounds
 <!-- Non-obvious solutions and why they exist -->
 
+## Spec: user-registration 2026-05-06
+
+`POST /api/users` — ADMIN only — registers new users. `UserService`/`UserServiceImpl` handles uniqueness checks (username + email) and BCrypt hashing. `ConflictException` → 409 via `GlobalExceptionHandler`. `role` defaults to USER when omitted. `RegisterRequest` DTO with `@NotBlank`, `@Size`, `@Email`, `@Pattern` for role.
+
 ## Spec: role-based-access 2026-05-06
 
 `@PreAuthorize("hasRole('ADMIN')")` on `GET /api/users`, `@PreAuthorize("isAuthenticated()")` on `GET /api/users/me`. `JwtAccessDeniedHandler` returns `{"code":"403","description":"Forbidden","data":null}` for filter-chain denials. `GlobalExceptionHandler` handles `AccessDeniedException` from `@PreAuthorize` (MVC layer) — the two handlers cover different exception paths. `UserSummaryDto` exposes users without `passwordHash`.
