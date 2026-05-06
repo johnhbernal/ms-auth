@@ -2,16 +2,22 @@ package co.com.practica.auth.controller.impl;
 
 import co.com.practica.auth.controller.UserController;
 import co.com.practica.auth.dto.ApiResponse;
+import co.com.practica.auth.dto.RegisterRequest;
 import co.com.practica.auth.dto.UserSummaryDto;
 import co.com.practica.auth.repository.UserRepository;
+import co.com.practica.auth.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestBody;
+import javax.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +31,16 @@ import java.util.stream.Collectors;
 public class UserControllerImpl implements UserController {
 
     private final UserRepository userRepository;
+    private final UserService    userService;
+
+    @Override
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse> register(@Valid @RequestBody RegisterRequest request) {
+        log.info("POST /api/users — registering username: {}", request.getUsername());
+        UserSummaryDto dto = userService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(dto));
+    }
 
     @Override
     @GetMapping

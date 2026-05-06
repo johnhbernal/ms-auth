@@ -38,6 +38,9 @@ public final class AppConstants {
     public static final String CODE_UNAUTHORIZED = "401";
     public static final String CODE_FORBIDDEN    = "403";
     public static final String MSG_FORBIDDEN     = "Forbidden";
+    public static final String CODE_CONFLICT     = "409";
+    public static final String MSG_USERNAME_EXISTS = "Username already exists";
+    public static final String MSG_EMAIL_EXISTS    = "Email already registered";
     public static final String CODE_NOT_FOUND    = "404";
     public static final String CODE_ERROR        = "500";
 

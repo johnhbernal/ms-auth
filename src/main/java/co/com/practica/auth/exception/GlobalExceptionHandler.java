@@ -75,6 +75,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(AppConstants.CODE_FORBIDDEN, AppConstants.MSG_FORBIDDEN));
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse> handleConflictException(ConflictException ex) {
+        log.warn("Conflict: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(AppConstants.CODE_CONFLICT, ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse> handleGenericException(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
