@@ -27,6 +27,48 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# AI/agent tooling
 .claude/memory/personal.md
 .claude/settings.local.json
 .claude/skills/**/__pycache__/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Editor / temp / backup
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+*.orig
+
+# Build artifacts (additional)
+build/
+dist/
+out/
+bin/
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Spring tools
+.factorypath
+.springBeans
+.sts4-cache/
+
+# Local Spring config overrides (never commit secrets)
+application-local.yml
+application.local.yml
+application-dev.yml
+application.dev.yml
+application-prod.yml
+application.prod.yml
+secrets/
