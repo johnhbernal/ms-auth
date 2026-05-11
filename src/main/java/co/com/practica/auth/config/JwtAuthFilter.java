@@ -1,6 +1,7 @@
 package co.com.practica.auth.config;
 
 import co.com.practica.auth.constants.AppConstants;
+import co.com.practica.auth.repository.UserRepository;
 import co.com.practica.auth.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
+    private final JwtUtil          jwtUtil;
+    private final UserRepository   userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -42,6 +44,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (jwtUtil.isSessionTokenValid(token)) {
             Claims claims = jwtUtil.extractSessionClaims(token);
+            String uuid = claims.get(AppConstants.CLAIM_UUID, String.class);
+
+            // Verify the session UUID still exists in DB — catches revoked sessions
+            if (uuid == null || !userRepository.findBySessionUuid(uuid).isPresent()) {
+                log.warn("Session UUID not found — token revoked or invalid");
+                chain.doFilter(request, response);
+                return;
+            }
+
             String username = claims.getSubject();
             String role     = claims.get(AppConstants.CLAIM_ROLE, String.class);
 
@@ -52,9 +63,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             );
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("JWT authenticated user: {} role: {}", username, role);
+            log.debug("JWT authenticated — role: {}", role);
         } else {
-            log.warn("Invalid or expired JWT on request: {}", request.getRequestURI());
+            log.warn("Invalid or expired JWT on {}", request.getRequestURI());
         }
 
         chain.doFilter(request, response);

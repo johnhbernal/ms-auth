@@ -16,6 +16,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -80,6 +81,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             .and()
             .headers()
+                .contentTypeOptions().and()
+                .xssProtection().and()
                 .frameOptions().sameOrigin()
                 .httpStrictTransportSecurity()
                     .includeSubDomains(true)
@@ -106,9 +109,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(allowedOrigins));
+        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",\\s*")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(false);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

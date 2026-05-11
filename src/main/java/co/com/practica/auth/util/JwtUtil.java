@@ -126,13 +126,19 @@ public class JwtUtil {
      */
     public boolean isSessionTokenValid(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(sessionKey).build().parseClaimsJws(token);
+            Claims claims = Jwts.parserBuilder().setSigningKey(sessionKey).build()
+                    .parseClaimsJws(token).getBody();
+            String tokenType = claims.get(AppConstants.CLAIM_TOKEN_TYPE, String.class);
+            if (!AppConstants.TOKEN_TYPE_SESSION.equals(tokenType)) {
+                log.warn("Token type mismatch: expected SESSION");
+                return false;
+            }
             return true;
         } catch (ExpiredJwtException e) {
             log.warn("Session token expired");
             return false;
         } catch (Exception e) {
-            log.warn("Invalid session token: {}", e.getMessage());
+            log.warn("Invalid session token");
             return false;
         }
     }

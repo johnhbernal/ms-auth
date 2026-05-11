@@ -63,12 +63,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        log.info("Login attempt for username: {}", request.getUsername());
+        log.info("Login attempt");
 
         User user = findActiveUser(request.getUsername());
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.warn("Wrong password for username: {}", request.getUsername());
+            log.warn("Authentication failed — invalid credentials");
             throw new AuthException(AppConstants.MSG_INVALID_CREDENTIALS);
         }
 
