@@ -37,13 +37,14 @@ public class SecurityConfig {
     private final JwtAuthEntryPoint      jwtAuthEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    @Value("${app.cors.allowed-origins:*}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/api/auth/login",
         "/api/auth/renew",
         "/api/auth/validate",
+        "/api/auth/logout",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",
@@ -80,6 +81,10 @@ public class SecurityConfig {
             .and()
             .headers()
                 .frameOptions().sameOrigin()
+                .httpStrictTransportSecurity()
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                .and()
             .and()
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

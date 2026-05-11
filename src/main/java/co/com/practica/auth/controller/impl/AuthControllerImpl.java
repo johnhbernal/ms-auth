@@ -9,10 +9,12 @@ import co.com.practica.auth.dto.RenewTokenRequest;
 import co.com.practica.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 /**
@@ -21,6 +23,7 @@ import javax.validation.Valid;
  * <pre>
  * POST /api/auth/login     — Authenticate and receive a session token
  * POST /api/auth/renew     — Renew the session token
+ * POST /api/auth/logout    — Revoke the current session token
  * GET  /api/auth/validate  — Check whether a token is still valid
  * </pre>
  */
@@ -32,42 +35,39 @@ public class AuthControllerImpl implements AuthController {
 
     private final AuthService authService;
 
-    /**
-     * POST /api/auth/login
-     *
-     * <p>Request:  {@code { "username": "admin", "password": "Admin123!" }}
-     * <p>Response: {@code { "code": "200", "data": { "sessionToken": "eyJ...", "role": "ADMIN", ... } }}
-     */
     @Override
     @PostMapping("/login")
     public ResponseEntity<ApiResponse> login(@Valid @RequestBody LoginRequest request) {
-        // Do NOT log the password — only the username
         log.info("POST /api/auth/login — username: {}", request.getUsername());
         LoginResponse response = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.ok(response));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("Pragma", "no-cache")
+                .body(ApiResponse.ok(response));
     }
 
-    /**
-     * POST /api/auth/renew
-     *
-     * <p>Request:  {@code { "sessionToken": "eyJ..." }}
-     * <p>Response: {@code { "code": "200", "data": { "sessionToken": "eyJ...(new)", ... } }}
-     */
     @Override
     @PostMapping("/renew")
     public ResponseEntity<ApiResponse> renewToken(@Valid @RequestBody RenewTokenRequest request) {
-        // Do NOT log the token value
         log.info("POST /api/auth/renew");
         LoginResponse response = authService.renewToken(request);
-        return ResponseEntity.ok(ApiResponse.ok(response));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("Pragma", "no-cache")
+                .body(ApiResponse.ok(response));
     }
 
-    /**
-     * GET /api/auth/validate?token=eyJ...
-     *
-     * <p>Response 200: {@code { "code": "200", "data": true }}
-     * <p>Response 401: {@code { "code": "401", "description": "Invalid or expired token" }}
-     */
+    @Override
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse> logout(HttpServletRequest httpRequest) {
+        log.info("POST /api/auth/logout");
+        String authHeader = httpRequest.getHeader(AppConstants.AUTHORIZATION_HEADER);
+        if (authHeader != null && authHeader.startsWith(AppConstants.BEARER_PREFIX)) {
+            authService.logout(authHeader.substring(AppConstants.BEARER_PREFIX.length()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(AppConstants.MSG_LOGOUT_SUCCESS));
+    }
+
     @Override
     @GetMapping("/validate")
     public ResponseEntity<ApiResponse> validateToken(@RequestParam String token) {

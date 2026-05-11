@@ -54,4 +54,7 @@ public final class AppConstants {
 
     // ── Master token parameter name prefix (ms-practica) ────────────────────
     public static final String MASTER_TOKEN_PARAM_PREFIX = "MASTER_TOKEN_";
+
+    // ── Logout ───────────────────────────────────────────────────────────────
+    public static final String MSG_LOGOUT_SUCCESS = "Logged out successfully";
 }

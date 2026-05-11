@@ -18,7 +18,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 /**
  * Default implementation of {@link AuthService}.
@@ -69,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String masterToken = jwtUtil.generateMasterToken(user.getUsername());
-        user.setMasterToken(masterToken);
+        user.setMasterToken(hashToken(masterToken));
         storeMasterTokenInPractica(user, masterToken);
 
         String sessionUuid  = jwtUtil.generateSessionUuid();
@@ -121,7 +125,32 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public boolean isSessionTokenValid(String token) {
-        return jwtUtil.isSessionTokenValid(token);
+        if (!jwtUtil.isSessionTokenValid(token)) return false;
+        try {
+            String uuid = jwtUtil.extractSessionClaims(token)
+                                 .get(AppConstants.CLAIM_UUID, String.class);
+            return uuid != null && userRepository.findBySessionUuid(uuid).isPresent();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public void logout(String sessionToken) {
+        try {
+            String uuid = jwtUtil.extractSessionClaims(sessionToken)
+                                 .get(AppConstants.CLAIM_UUID, String.class);
+            if (uuid == null) return;
+            userRepository.findBySessionUuid(uuid).ifPresent(user -> {
+                user.setSessionToken(null);
+                user.setSessionUuid(null);
+                userRepository.save(user);
+                log.info("Session invalidated for user: {}", user.getUsername());
+            });
+        } catch (Exception e) {
+            log.warn("Logout: could not extract session claims — {}", e.getMessage());
+        }
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -177,7 +206,7 @@ public class AuthServiceImpl implements AuthService {
         try {
             ParameterFeignDto parameter = ParameterFeignDto.builder()
                     .parameterName(AppConstants.MASTER_TOKEN_PARAM_PREFIX + user.getUsername().toUpperCase())
-                    .parameterValue(masterToken)
+                    .parameterValue(hashToken(masterToken))
                     .parameterDescription("Master session token for user: " + user.getUsername())
                     .status(AppConstants.STATUS_ACTIVE)
                     .build();
@@ -188,6 +217,16 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             log.error("Could not store master token in ms-practica for {}: {}",
                     user.getUsername(), e.getMessage());
+        }
+    }
+
+    private static String hashToken(String token) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 }

@@ -30,10 +30,20 @@ public interface AuthService {
     LoginResponse renewToken(RenewTokenRequest request);
 
     /**
-     * Validates whether a session token is syntactically correct and not expired.
+     * Validates whether a session token is syntactically correct, not expired,
+     * and still active in the database (not logged out).
      *
      * @param token session JWT to validate
      * @return {@code true} if valid; {@code false} otherwise
      */
     boolean isSessionTokenValid(String token);
+
+    /**
+     * Invalidates the session associated with the given token by clearing
+     * the stored session UUID. Subsequent calls to {@link #isSessionTokenValid}
+     * will return {@code false} for this token.
+     *
+     * @param sessionToken the session JWT to revoke
+     */
+    void logout(String sessionToken);
 }

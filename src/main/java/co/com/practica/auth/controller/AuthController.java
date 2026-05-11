@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 /**
@@ -37,10 +38,16 @@ public interface AuthController {
 
     @Operation(
         summary = "Validate session token",
-        description = "Returns true if the session token is valid and not expired."
+        description = "Returns true if the session token is valid, not expired, and not logged out."
     )
     ResponseEntity<ApiResponse> validateToken(
             @Parameter(description = "Session JWT to validate", required = true)
             @RequestParam String token
     );
+
+    @Operation(
+        summary = "Logout",
+        description = "Revokes the current session token. Subsequent validate calls will return false."
+    )
+    ResponseEntity<ApiResponse> logout(HttpServletRequest request);
 }
