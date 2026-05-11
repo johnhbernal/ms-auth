@@ -55,6 +55,11 @@ public final class AppConstants {
     // ── Master token parameter name prefix (ms-practica) ────────────────────
     public static final String MASTER_TOKEN_PARAM_PREFIX = "MASTER_TOKEN_";
 
+    // ── Account lockout ──────────────────────────────────────────────────────
+    public static final int    MAX_FAILED_ATTEMPTS    = 5;
+    public static final int    LOCKOUT_DURATION_MINS  = 15;
+    public static final String MSG_ACCOUNT_LOCKED     = "Account temporarily locked due to too many failed attempts. Try again in 15 minutes.";
+
     // ── Logout ───────────────────────────────────────────────────────────────
     public static final String MSG_LOGOUT_SUCCESS = "Logged out successfully";
 }

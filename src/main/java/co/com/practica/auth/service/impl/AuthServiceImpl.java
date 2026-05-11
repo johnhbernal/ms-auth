@@ -67,10 +67,26 @@ public class AuthServiceImpl implements AuthService {
 
         User user = findActiveUser(request.getUsername());
 
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+            log.warn("Login rejected — account locked");
+            throw new AuthException(AppConstants.MSG_ACCOUNT_LOCKED);
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
+            if (attempts >= AppConstants.MAX_FAILED_ATTEMPTS) {
+                user.setLockedUntil(LocalDateTime.now().plusMinutes(AppConstants.LOCKOUT_DURATION_MINS));
+                log.warn("Account locked after {} failed attempts", attempts);
+            }
+            userRepository.save(user);
             log.warn("Authentication failed — invalid credentials");
             throw new AuthException(AppConstants.MSG_INVALID_CREDENTIALS);
         }
+
+        // Reset failed attempts on successful authentication
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
 
         String masterToken = jwtUtil.generateMasterToken(user.getUsername());
         user.setMasterToken(hashToken(masterToken));

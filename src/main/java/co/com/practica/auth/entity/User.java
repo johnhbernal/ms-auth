@@ -92,6 +92,15 @@ public class User {
     @Column(name = "SESSION_TOKEN_EXPIRES_AT")
     private LocalDateTime sessionTokenExpiresAt;
 
+    /** Consecutive failed login attempts since last successful login. */
+    @Column(name = "FAILED_LOGIN_ATTEMPTS", nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    /** When set, the account is locked until this timestamp. */
+    @Column(name = "LOCKED_UNTIL")
+    private LocalDateTime lockedUntil;
+
     /**
      * Sets {@code createdAt} automatically before the first persist,
      * avoiding reliance on {@code @Builder.Default} for temporal fields.
