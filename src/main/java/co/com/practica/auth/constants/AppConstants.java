@@ -55,6 +55,9 @@ public final class AppConstants {
     // ── Master token parameter name prefix (ms-practica) ────────────────────
     public static final String MASTER_TOKEN_PARAM_PREFIX = "MASTER_TOKEN_";
 
+    // ── Session ──────────────────────────────────────────────────────────────
+    public static final int    SESSION_EXPIRATION_MINS = 15;
+
     // ── Account lockout ──────────────────────────────────────────────────────
     public static final int    MAX_FAILED_ATTEMPTS    = 5;
     public static final int    LOCKOUT_DURATION_MINS  = 15;

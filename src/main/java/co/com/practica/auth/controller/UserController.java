@@ -5,8 +5,11 @@ import co.com.practica.auth.dto.RegisterRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 /**
  * User management API — role-gated endpoints.
@@ -29,7 +32,10 @@ public interface UserController {
         summary     = "List all users",
         description = "Returns all registered users without password hashes. Requires ADMIN role."
     )
-    ResponseEntity<ApiResponse> listUsers();
+    ResponseEntity<ApiResponse> listUsers(
+        @Min(0) @RequestParam(defaultValue = "0")   int page,
+        @Min(1) @Max(100) @RequestParam(defaultValue = "50") int size
+    );
 
     @Operation(
         summary     = "Current user info",

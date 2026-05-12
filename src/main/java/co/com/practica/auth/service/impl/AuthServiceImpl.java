@@ -99,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
         user.setSessionToken(sessionToken);
         user.setSessionUuid(sessionUuid);
         user.setLastLoginAt(now);
-        user.setSessionTokenExpiresAt(now.plusMinutes(15));
+        user.setSessionTokenExpiresAt(now.plusMinutes(AppConstants.SESSION_EXPIRATION_MINS));
         userRepository.save(user);
 
         log.info("Login successful — username: {} role: {}", user.getUsername(), user.getRole());
@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
         LocalDateTime now = LocalDateTime.now();
         user.setSessionToken(newSessionToken);
         user.setSessionUuid(newUuid);
-        user.setSessionTokenExpiresAt(now.plusMinutes(15));
+        user.setSessionTokenExpiresAt(now.plusMinutes(AppConstants.SESSION_EXPIRATION_MINS));
         userRepository.save(user);
 
         log.info("Token renewed for username: {}", user.getUsername());

@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * REST controller that exposes authentication endpoints.
@@ -28,6 +30,7 @@ import javax.validation.Valid;
  * </pre>
  */
 @Log4j2
+@Validated
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -70,7 +73,7 @@ public class AuthControllerImpl implements AuthController {
 
     @Override
     @GetMapping("/validate")
-    public ResponseEntity<ApiResponse> validateToken(@RequestParam String token) {
+    public ResponseEntity<ApiResponse> validateToken(@NotBlank(message = "Token is required") @RequestParam String token) {
         log.debug("GET /api/auth/validate");
         boolean valid = authService.isSessionTokenValid(token);
         if (valid) {

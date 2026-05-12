@@ -13,6 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestBody;
 import javax.validation.Valid;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +31,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Log4j2
+@Validated
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -49,9 +53,8 @@ public class UserControllerImpl implements UserController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse> listUsers(
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "50") int size) {
-        size = Math.min(size, 100); // cap at 100 per page
+            @Min(0)           @RequestParam(defaultValue = "0")  int page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "50") int size) {
         log.info("GET /api/users — page={} size={}", page, size);
         List<UserSummaryDto> users = userRepository
                 .findAll(PageRequest.of(page, size, Sort.by("id")))
