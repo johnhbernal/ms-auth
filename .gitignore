@@ -38,7 +38,9 @@ $RECYCLE.BIN/
 .claude/skills/**/__pycache__/
 
 # VS Code
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.code-workspace
 
 # Editor / temp / backup
