@@ -11,7 +11,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import javax.validation.Path;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
@@ -68,6 +75,25 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getCode()).isEqualTo(AppConstants.CODE_BAD_REQUEST);
         assertThat(response.getBody().getDescription()).contains("username").contains("Username is required");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handleConstraintViolation_returns400WithMessages() {
+        ConstraintViolation<Object> violation = mock(ConstraintViolation.class);
+        Path path = mock(Path.class);
+        when(path.toString()).thenReturn("validateToken.token");
+        when(violation.getPropertyPath()).thenReturn(path);
+        when(violation.getMessage()).thenReturn("Token is required");
+
+        ConstraintViolationException ex = new ConstraintViolationException(Set.of(violation));
+
+        ResponseEntity<ApiResponse> response = handler.handleConstraintViolation(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getCode()).isEqualTo(AppConstants.CODE_BAD_REQUEST);
+        assertThat(response.getBody().getDescription()).contains("Token is required");
     }
 
     @Test

@@ -3,8 +3,11 @@ package co.com.practica.auth.controller;
 import co.com.practica.auth.util.PracticaServiceClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,11 +31,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Spins up the complete application context with H2 in-memory DB.
  * {@code @ActiveProfiles("dev")} activates DataInitializer (seeds admin/user/reader).
  * {@code @MockBean PracticaServiceClient} prevents Feign from calling ms-practica.
+ *
+ * <p>Ordered so validate/protected run before renew (renew rotates session UUID).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @ActiveProfiles({"dev", "test"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AuthControllerIntegrationTest {
 
     private static final String LOGIN_URL     = "/api/auth/login";
@@ -63,6 +69,7 @@ class AuthControllerIntegrationTest {
     // ── Login ────────────────────────────────────────────────────────────────
 
     @Test
+    @Order(1)
     void login_validCredentials_returns200AndSessionToken() throws Exception {
         String body = mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,15 +85,17 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Order(2)
     void login_wrongPassword_returns401() throws Exception {
         mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"admin\",\"password\":\"wrong!!\"}"))  // >= 6 chars, wrong value
+                        .content("{\"username\":\"admin\",\"password\":\"wrong!!!!\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("401"));
     }
 
     @Test
+    @Order(3)
     void login_blankUsername_returns400() throws Exception {
         mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,6 +105,7 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    @Order(4)
     void login_blankPassword_returns400() throws Exception {
         mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -104,9 +114,58 @@ class AuthControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value("400"));
     }
 
-    // ── Renew ────────────────────────────────────────────────────────────────
+    // ── Validate / protected (before renew — shared admin token still valid) ─
 
     @Test
+    @Order(10)
+    void validateToken_validToken_returns200True() throws Exception {
+        mockMvc.perform(get(VALIDATE_URL).param("token", sessionToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("200"))
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
+    @Order(11)
+    void validateToken_invalidToken_returns401() throws Exception {
+        mockMvc.perform(get(VALIDATE_URL).param("token", "tampered.invalid.token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("401"));
+    }
+
+    @Test
+    @Order(12)
+    void protectedEndpoint_noToken_returns401JsonContract() throws Exception {
+        mockMvc.perform(get(PROTECTED_URL))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value("401"))
+                .andExpect(jsonPath("$.description").value("Unauthorized"));
+    }
+
+    @Test
+    @Order(13)
+    void protectedEndpoint_validToken_isNotUnauthorized() throws Exception {
+        MvcResult result = mockMvc.perform(get(PROTECTED_URL)
+                        .header("Authorization", "Bearer " + sessionToken))
+                .andReturn();
+        assertThat(result.getResponse().getStatus())
+                .isNotEqualTo(HttpStatus.UNAUTHORIZED.value());
+    }
+
+    @Test
+    @Order(14)
+    void protectedEndpoint_tamperedToken_returns401() throws Exception {
+        mockMvc.perform(get(PROTECTED_URL)
+                        .header("Authorization", "Bearer " + sessionToken + "tampered"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("401"));
+    }
+
+    // ── Renew (rotates UUID — refresh shared token afterward) ────────────────
+
+    @Test
+    @Order(20)
     void renewToken_validToken_returns200AndNewToken() throws Exception {
         String body = mockMvc.perform(post(RENEW_URL)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,58 +177,15 @@ class AuthControllerIntegrationTest {
 
         String newToken = objectMapper.readTree(body).path("data").path("sessionToken").asText();
         assertThat(newToken).isNotBlank().isNotEqualTo(sessionToken);
+        sessionToken = newToken;
     }
 
     @Test
+    @Order(21)
     void renewToken_invalidToken_returns401() throws Exception {
         mockMvc.perform(post(RENEW_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sessionToken\":\"not.a.real.token\"}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("401"));
-    }
-
-    // ── Validate ─────────────────────────────────────────────────────────────
-
-    @Test
-    void validateToken_validToken_returns200True() throws Exception {
-        mockMvc.perform(get(VALIDATE_URL).param("token", sessionToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("200"))
-                .andExpect(jsonPath("$.data").value(true));
-    }
-
-    @Test
-    void validateToken_invalidToken_returns401() throws Exception {
-        mockMvc.perform(get(VALIDATE_URL).param("token", "tampered.invalid.token"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("401"));
-    }
-
-    // ── JWT filter chain ─────────────────────────────────────────────────────
-
-    @Test
-    void protectedEndpoint_noToken_returns401JsonContract() throws Exception {
-        mockMvc.perform(get(PROTECTED_URL))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.code").value("401"))
-                .andExpect(jsonPath("$.description").value("Unauthorized"));
-    }
-
-    @Test
-    void protectedEndpoint_validToken_isNotUnauthorized() throws Exception {
-        MvcResult result = mockMvc.perform(get(PROTECTED_URL)
-                        .header("Authorization", "Bearer " + sessionToken))
-                .andReturn();
-        assertThat(result.getResponse().getStatus())
-                .isNotEqualTo(HttpStatus.UNAUTHORIZED.value());
-    }
-
-    @Test
-    void protectedEndpoint_tamperedToken_returns401() throws Exception {
-        mockMvc.perform(get(PROTECTED_URL)
-                        .header("Authorization", "Bearer " + sessionToken + "tampered"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("401"));
     }

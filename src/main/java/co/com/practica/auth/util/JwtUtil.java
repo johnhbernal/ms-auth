@@ -53,17 +53,20 @@ public class JwtUtil {
     }
 
     /**
-     * Generates a master token (24 h) for the given username.
+     * Generates a master token (24 h) for the given username and role.
+     * Role is required so ms-practica {@code hasRole('ADMIN')} accepts Feign calls.
      *
      * @param username the authenticated user's username
+     * @param role     role name (e.g. ADMIN) without ROLE_ prefix
      * @return signed master JWT
      */
-    public String generateMasterToken(String username) {
+    public String generateMasterToken(String username, String role) {
         Date now        = new Date();
         Date expiration = new Date(now.getTime() + masterExpirationMs);
         return Jwts.builder()
                 .setSubject(username)
                 .claim(AppConstants.CLAIM_TOKEN_TYPE, AppConstants.TOKEN_TYPE_MASTER)
+                .claim(AppConstants.CLAIM_ROLE, role)
                 .setIssuedAt(now)
                 .setExpiration(expiration)
                 .signWith(masterKey)

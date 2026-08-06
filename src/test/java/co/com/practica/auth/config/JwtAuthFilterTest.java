@@ -1,6 +1,8 @@
 package co.com.practica.auth.config;
 
 import co.com.practica.auth.constants.AppConstants;
+import co.com.practica.auth.entity.User;
+import co.com.practica.auth.repository.UserRepository;
 import co.com.practica.auth.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.AfterEach;
@@ -14,13 +16,16 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class JwtAuthFilterTest {
 
-    @Mock private JwtUtil jwtUtil;
+    @Mock private JwtUtil          jwtUtil;
+    @Mock private UserRepository   userRepository;
 
     @InjectMocks
     private JwtAuthFilter jwtAuthFilter;
@@ -60,9 +65,11 @@ class JwtAuthFilterTest {
         Claims claims = mock(Claims.class);
         when(claims.getSubject()).thenReturn("admin");
         when(claims.get(AppConstants.CLAIM_ROLE, String.class)).thenReturn("ADMIN");
+        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("uuid-1");
 
         when(jwtUtil.isSessionTokenValid("valid-token")).thenReturn(true);
         when(jwtUtil.extractSessionClaims("valid-token")).thenReturn(claims);
+        when(userRepository.findBySessionUuid("uuid-1")).thenReturn(Optional.of(User.builder().username("admin").build()));
 
         MockHttpServletRequest  request  = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -100,9 +107,11 @@ class JwtAuthFilterTest {
         Claims claims = mock(Claims.class);
         when(claims.getSubject()).thenReturn("reader");
         when(claims.get(AppConstants.CLAIM_ROLE, String.class)).thenReturn("READONLY");
+        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("uuid-2");
 
         when(jwtUtil.isSessionTokenValid("readonly-token")).thenReturn(true);
         when(jwtUtil.extractSessionClaims("readonly-token")).thenReturn(claims);
+        when(userRepository.findBySessionUuid("uuid-2")).thenReturn(Optional.of(User.builder().username("reader").build()));
 
         MockHttpServletRequest  request  = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -115,5 +124,25 @@ class JwtAuthFilterTest {
         assertThat(auth.getPrincipal()).isEqualTo("reader");
         assertThat(auth.getAuthorities())
                 .anyMatch(a -> a.getAuthority().equals("ROLE_READONLY"));
+    }
+
+    @Test
+    void validJwt_butRevokedUuid_contextEmpty() throws Exception {
+        Claims claims = mock(Claims.class);
+        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("revoked-uuid");
+
+        when(jwtUtil.isSessionTokenValid("revoked-token")).thenReturn(true);
+        when(jwtUtil.extractSessionClaims("revoked-token")).thenReturn(claims);
+        when(userRepository.findBySessionUuid("revoked-uuid")).thenReturn(Optional.empty());
+
+        MockHttpServletRequest  request  = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain         chain    = new MockFilterChain();
+        request.addHeader(AppConstants.AUTHORIZATION_HEADER, "Bearer revoked-token");
+
+        jwtAuthFilter.doFilterInternal(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(chain.getRequest()).isNotNull();
     }
 }

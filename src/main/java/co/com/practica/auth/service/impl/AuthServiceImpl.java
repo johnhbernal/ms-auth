@@ -88,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
 
-        String masterToken = jwtUtil.generateMasterToken(user.getUsername());
+        String masterToken = jwtUtil.generateMasterToken(user.getUsername(), user.getRole().name());
         user.setMasterToken(hashToken(masterToken));
         storeMasterTokenInPractica(user, masterToken);
 

@@ -62,7 +62,7 @@ class AuthServiceImplTest {
         when(userRepository.findByUsernameAndStatus("admin", AppConstants.STATUS_ACTIVE))
                 .thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("Admin123!", "$2a$10$hashed")).thenReturn(true);
-        when(jwtUtil.generateMasterToken("admin")).thenReturn("master-token");
+        when(jwtUtil.generateMasterToken("admin", "ADMIN")).thenReturn("master-token");
         when(jwtUtil.generateSessionUuid()).thenReturn("uuid-1");
         when(jwtUtil.generateSessionToken(any(), anyString())).thenReturn("session-token");
         when(jwtUtil.getSessionExpirationMs()).thenReturn(900000L);
@@ -108,7 +108,7 @@ class AuthServiceImplTest {
         when(userRepository.findByUsernameAndStatus("admin", AppConstants.STATUS_ACTIVE))
                 .thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(jwtUtil.generateMasterToken(anyString())).thenReturn("master-token");
+        when(jwtUtil.generateMasterToken(anyString(), anyString())).thenReturn("master-token");
         when(jwtUtil.generateSessionUuid()).thenReturn("uuid-1");
         when(jwtUtil.generateSessionToken(any(), anyString())).thenReturn("session-token");
         when(jwtUtil.getSessionExpirationMs()).thenReturn(900000L);
@@ -192,7 +192,12 @@ class AuthServiceImplTest {
 
     @Test
     void isSessionTokenValid_delegatesToJwtUtil() {
+        Claims claims = mock(Claims.class);
+        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("uuid-1");
+
         when(jwtUtil.isSessionTokenValid("token")).thenReturn(true);
+        when(jwtUtil.extractSessionClaims("token")).thenReturn(claims);
+        when(userRepository.findBySessionUuid("uuid-1")).thenReturn(Optional.of(activeUser));
         assertThat(authService.isSessionTokenValid("token")).isTrue();
 
         when(jwtUtil.isSessionTokenValid("bad")).thenReturn(false);

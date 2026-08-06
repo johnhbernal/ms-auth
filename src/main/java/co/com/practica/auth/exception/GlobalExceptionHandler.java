@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import javax.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
 /**
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
  *   <li>{@link ResourceNotFoundException}            → 404 Not Found</li>
  *   <li>{@link MissingServletRequestParameterException} → 400 Bad Request</li>
  *   <li>{@link MethodArgumentNotValidException}      → 400 Bad Request</li>
+ *   <li>{@link ConstraintViolationException}         → 400 Bad Request</li>
  *   <li>{@link Exception}                            → 500 Internal Server Error</li>
  * </ul>
  */
@@ -60,6 +62,17 @@ public class GlobalExceptionHandler {
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         log.warn("Validation failed: {}", errors);
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(AppConstants.CODE_BAD_REQUEST, errors));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        String errors = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("Constraint violation: {}", errors);
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error(AppConstants.CODE_BAD_REQUEST, errors));

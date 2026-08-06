@@ -14,11 +14,12 @@ Authentication microservice for the Practica system.
 ## How to run
 
 ```bash
-# Required environment variables
+# Required environment variables (or use the dev profile for local defaults)
 export APP_JWT_SECRET_MASTER=<at-least-32-char-secret>
 export APP_JWT_SECRET_SESSION=<at-least-32-char-secret>
 
-mvn spring-boot:run
+# Local development (loads application-dev.properties)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 # Server starts on http://localhost:8081
 ```
 
@@ -29,9 +30,9 @@ mvn spring-boot:run
 | POST | `/api/auth/login` | — | Authenticate, receive sessionToken (15 min) |
 | POST | `/api/auth/renew` | — | Renew sessionToken using current token |
 | POST | `/api/auth/logout` | Bearer | Revoke session (nulls UUID in DB) |
-| GET | `/api/auth/validate` | Bearer | Check if current token is still valid |
+| GET | `/api/auth/validate?token=` | — | Check if token is still valid |
 | GET | `/api/users` | Bearer ADMIN | List users (paginated) |
-| POST | `/api/users/register` | Bearer ADMIN | Register a new user |
+| POST | `/api/users` | Bearer ADMIN | Register a new user |
 
 ## Token model
 
@@ -51,6 +52,6 @@ mvn spring-boot:run
 ## Swagger UI (dev)
 
 ```bash
-SWAGGER_ENABLED=true mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 # http://localhost:8081/swagger-ui/index.html
 ```

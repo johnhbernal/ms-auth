@@ -31,19 +31,19 @@ class JwtUtilTest {
 
     @Test
     void generateMasterToken_returnsNonNullToken() {
-        String token = jwtUtil.generateMasterToken("admin");
+        String token = jwtUtil.generateMasterToken("admin", "ADMIN");
         assertThat(token).isNotBlank();
     }
 
     @Test
     void generateMasterToken_containsCorrectSubjectAndType() {
-        String token = jwtUtil.generateMasterToken("admin");
+        String token = jwtUtil.generateMasterToken("admin", "ADMIN");
         assertThat(jwtUtil.isMasterTokenValid(token)).isTrue();
     }
 
     @Test
     void isMasterTokenValid_returnsFalseForTamperedToken() {
-        String token = jwtUtil.generateMasterToken("admin") + "tampered";
+        String token = jwtUtil.generateMasterToken("admin", "ADMIN") + "tampered";
         assertThat(jwtUtil.isMasterTokenValid(token)).isFalse();
     }
 
