@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Loads seed data in DEV profile only.
+ * Loads seed data in {@code dev} or {@code stack} profiles only
+ * (local Docker full-stack demos use {@code prod,stack}).
  * Creates three test users, one per available role.
  *
  * <pre>
@@ -30,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Log4j2
 @Component
-@Profile("dev")
+@Profile({"dev", "stack"})
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
