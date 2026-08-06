@@ -73,6 +73,7 @@ class AuthServiceImplTest {
         assertThat(response.getSessionToken()).isEqualTo("session-token");
         assertThat(response.getRole()).isEqualTo("ADMIN");
         assertThat(response.getMessage()).isEqualTo(AppConstants.MSG_LOGIN_SUCCESS);
+        assertThat(activeUser.getSessionToken()).isNotEqualTo("session-token").isNotBlank();
         verify(userRepository).save(activeUser);
     }
 
@@ -139,6 +140,7 @@ class AuthServiceImplTest {
 
         assertThat(response.getSessionToken()).isEqualTo("new-session-token");
         assertThat(response.getMessage()).isEqualTo(AppConstants.MSG_TOKEN_RENEWED);
+        assertThat(activeUser.getSessionToken()).isNotEqualTo("new-session-token").isNotBlank();
     }
 
     @Test

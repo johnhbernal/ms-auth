@@ -14,10 +14,11 @@ import java.time.LocalDateTime;
  *
  * <h3>Key fields</h3>
  * <ul>
- *   <li><b>masterToken</b>  — Long-lived JWT (24 h) stored here and in
- *       ms-practica PARAMETERS table via Feign.</li>
- *   <li><b>sessionToken</b> — Short-lived JWT (15 min) with UUID, user data
- *       and role. This is the token the client uses in every request.</li>
+ *   <li><b>masterToken</b>  — SHA-256 (Base64) hash of the long-lived master JWT
+ *       (24 h); also stored hashed in ms-practica PARAMETERS via Feign.</li>
+ *   <li><b>sessionToken</b> — SHA-256 (Base64) hash of the short-lived session JWT
+ *       (15 min). The plaintext JWT is returned to the client only; this column
+ *       never stores the raw JWT.</li>
  *   <li><b>sessionUuid</b>  — Unique UUID per active session. Rotated on every
  *       renewal, which immediately invalidates the previous session token.</li>
  * </ul>
@@ -56,16 +57,16 @@ public class User {
     private Role role;
 
     /**
-     * Master JWT token (24 h).
-     * Stored here AND in ms-practica PARAMETERS table.
+     * SHA-256 (Base64) hash of the master JWT (24 h).
+     * Stored here AND (hashed) in ms-practica PARAMETERS table.
      */
     @Column(name = "MASTER_TOKEN", columnDefinition = "TEXT")
     private String masterToken;
 
     /**
-     * Session JWT token (15 min).
-     * The client uses this token in every request:
-     * {@code Authorization: Bearer <sessionToken>}
+     * SHA-256 (Base64) hash of the session JWT (15 min) — not the JWT itself.
+     * The client receives the plaintext JWT once and sends it as
+     * {@code Authorization: Bearer <sessionToken>}; revocation uses {@code sessionUuid}.
      */
     @Column(name = "SESSION_TOKEN", columnDefinition = "TEXT")
     private String sessionToken;

@@ -46,10 +46,26 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
+        validateSecret("app.jwt.secret-master", masterSecret);
+        validateSecret("app.jwt.secret-session", sessionSecret);
         this.masterKey  = Keys.hmacShaKeyFor(masterSecret.getBytes(StandardCharsets.UTF_8));
         this.sessionKey = Keys.hmacShaKeyFor(sessionSecret.getBytes(StandardCharsets.UTF_8));
         log.info("JwtUtil initialized — masterExpiration={}ms, sessionExpiration={}ms",
                 masterExpirationMs, sessionExpirationMs);
+    }
+
+    /**
+     * Fail-fast when a JWT secret is missing or too short for HMAC-SHA256 (≥ 32 bytes).
+     */
+    private static void validateSecret(String name, String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(name + " must not be null or blank");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    name + " must be at least 32 bytes for HMAC-SHA256 (got "
+                            + secret.getBytes(StandardCharsets.UTF_8).length + ")");
+        }
     }
 
     /**

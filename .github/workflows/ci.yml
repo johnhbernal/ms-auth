@@ -24,7 +24,7 @@ jobs:
           distribution: temurin
 
       - name: Compile and package
-        run: mvn package -DskipTests -q
+        run: ./mvnw -B package -DskipTests
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
@@ -46,8 +46,8 @@ jobs:
           java-version: '17'
           distribution: temurin
 
-      - name: Run tests
-        run: mvn test
+      - name: Run tests with coverage gate
+        run: ./mvnw -B verify
 
   docker-build:
     name: Docker Build

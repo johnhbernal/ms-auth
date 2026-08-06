@@ -19,7 +19,13 @@ java -version
 mvn -version
 
 Write-Host ''
+Write-Host 'Register JDK in IntelliJ (fixes false String / unused warnings):'
+Write-Host '  powershell -File scripts/setup-intellij-sdk.ps1'
+& "$PSScriptRoot\setup-intellij-sdk.ps1"
+
+Write-Host ''
 Write-Host 'Local CI gate (must be green before push):'
-Write-Host '  mvn -B test'
+Write-Host '  .\mvnw.cmd -B verify'
+Write-Host '  # or: powershell -File scripts/ci-local.ps1'
 Write-Host 'Run app (dev profile):'
-Write-Host '  mvn spring-boot:run "-Dspring-boot.run.profiles=dev"'
+Write-Host '  .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"'

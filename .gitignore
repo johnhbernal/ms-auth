@@ -11,8 +11,17 @@ target/
 .project
 *.launch
 
-# IntelliJ
-.idea/
+# IntelliJ — share SDK language level + dictionary; keep local caches out
+.idea/*
+!.idea/.gitignore
+!.idea/misc.xml
+!.idea/compiler.xml
+!.idea/encodings.xml
+!.idea/vcs.xml
+!.idea/jarRepositories.xml
+!.idea/dictionaries/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
 *.iml
 
 # Variables de entorno
@@ -36,6 +45,12 @@ $RECYCLE.BIN/
 .claude/memory/personal.md
 .claude/settings.local.json
 .claude/skills/**/__pycache__/
+.claude/proven-config.json
+.claude/.proven-config-version
+.claude-flow/
+
+# Local verify logs
+build-verify.log
 
 # VS Code
 .vscode/*

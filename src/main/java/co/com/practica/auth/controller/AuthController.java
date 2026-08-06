@@ -51,7 +51,7 @@ public interface AuthController {
     )
     @GetMapping("/validate")
     ResponseEntity<ApiResponse> validateToken(
-            @Parameter(description = "Bearer session JWT (preferred)", required = false)
+            @Parameter(description = "Bearer session JWT (preferred)")
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Parameter(description = "Deprecated: JWT in query string — prefer Authorization header")
             @RequestParam(value = "token", required = false) String token

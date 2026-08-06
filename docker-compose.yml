@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: msauth
+      POSTGRES_USER: msauth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-msauth}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U msauth -d msauth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  ms-auth:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      APP_JWT_SECRET_MASTER: ${APP_JWT_SECRET_MASTER}
+      APP_JWT_SECRET_SESSION: ${APP_JWT_SECRET_SESSION}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/msauth
+      SPRING_DATASOURCE_USERNAME: msauth
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-msauth}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      MS_PRACTICA_URL: ${MS_PRACTICA_URL:-http://host.docker.internal:8082}
+      JAVA_OPTS: ${JAVA_OPTS:-}
+    ports:
+      - "8081:8081"
+
+volumes:
+  pgdata:

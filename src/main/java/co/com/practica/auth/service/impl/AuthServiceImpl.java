@@ -35,8 +35,8 @@ import java.util.Base64;
  *   <li>Call ms-practica via Feign to store masterToken in PARAMETERS table.</li>
  *   <li>Generate new session UUID.</li>
  *   <li>Generate sessionToken (15 min) with UUID and user claims.</li>
- *   <li>Persist sessionToken, sessionUuid and lastLoginAt.</li>
- *   <li>Return {@link LoginResponse} with sessionToken to the caller.</li>
+ *   <li>Persist SHA-256 hash of sessionToken, sessionUuid and lastLoginAt.</li>
+ *   <li>Return {@link LoginResponse} with plaintext sessionToken to the caller.</li>
  * </ol>
  *
  * <h3>Renewal flow</h3>
@@ -46,8 +46,8 @@ import java.util.Base64;
  *   <li>Verify user is still active.</li>
  *   <li>Rotate UUID — generate a new one (previous session is now invalid).</li>
  *   <li>Generate new sessionToken (15 min) with the new UUID.</li>
- *   <li>Persist updated sessionToken, sessionUuid and expiry.</li>
- *   <li>Return {@link LoginResponse} with the new sessionToken.</li>
+ *   <li>Persist SHA-256 hash of sessionToken, sessionUuid and expiry.</li>
+ *   <li>Return {@link LoginResponse} with the new plaintext sessionToken.</li>
  * </ol>
  */
 @Log4j2
@@ -96,7 +96,7 @@ public class AuthServiceImpl implements AuthService {
         String sessionToken = jwtUtil.generateSessionToken(user, sessionUuid);
 
         LocalDateTime now = LocalDateTime.now();
-        user.setSessionToken(sessionToken);
+        user.setSessionToken(hashToken(sessionToken));
         user.setSessionUuid(sessionUuid);
         user.setLastLoginAt(now);
         user.setSessionTokenExpiresAt(now.plusMinutes(AppConstants.SESSION_EXPIRATION_MINS));
@@ -130,7 +130,7 @@ public class AuthServiceImpl implements AuthService {
         String newSessionToken = jwtUtil.generateSessionToken(user, newUuid);
 
         LocalDateTime now = LocalDateTime.now();
-        user.setSessionToken(newSessionToken);
+        user.setSessionToken(hashToken(newSessionToken));
         user.setSessionUuid(newUuid);
         user.setSessionTokenExpiresAt(now.plusMinutes(AppConstants.SESSION_EXPIRATION_MINS));
         userRepository.save(user);

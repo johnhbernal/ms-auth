@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtUtilTest {
 
@@ -108,6 +109,29 @@ class JwtUtilTest {
     void extractUsernameFromSession_returnsCorrectUsername() {
         String token = jwtUtil.generateSessionToken(buildUser(), "uuid-1");
         assertThat(jwtUtil.extractUsernameFromSession(token)).isEqualTo("admin");
+    }
+
+    // ── Secret validation ────────────────────────────────────────────────────
+
+    @Test
+    void init_blankSecret_throwsIllegalStateException() {
+        JwtUtil util = new JwtUtil();
+        ReflectionTestUtils.setField(util, "masterSecret", "");
+        ReflectionTestUtils.setField(util, "sessionSecret", SESSION_SECRET);
+        assertThatThrownBy(util::init)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.jwt.secret-master");
+    }
+
+    @Test
+    void init_shortSecret_throwsIllegalStateException() {
+        JwtUtil util = new JwtUtil();
+        ReflectionTestUtils.setField(util, "masterSecret", MASTER_SECRET);
+        ReflectionTestUtils.setField(util, "sessionSecret", "too-short");
+        assertThatThrownBy(util::init)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.jwt.secret-session")
+                .hasMessageContaining("32 bytes");
     }
 
     // ── UUID generation ──────────────────────────────────────────────────────

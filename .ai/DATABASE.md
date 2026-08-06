@@ -1,16 +1,24 @@
-# DATABASE — H2 / JPA / User
+# DATABASE — H2 / Postgres / Flyway / User
 
-> In-memory H2 for dev/test. JPA entity `User` → table `USERS`.
+> Dev/test: in-memory H2 (Flyway **off**, Hibernate DDL). Prod: PostgreSQL + Flyway (`ddl-auto=validate`).
 
-## Datasource (base)
+## Profiles
 
-```
-jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-ddl-auto=create-drop
-open-in-view=false
-```
+| Profile | Datasource | `ddl-auto` | Flyway |
+|---------|------------|------------|--------|
+| `dev` | H2 mem `authdb` | `update` | `false` |
+| `test` | H2 mem `authdb` | `create-drop` | `false` |
+| `prod` | `${SPRING_DATASOURCE_URL}` (Postgres) | `validate` | `true` |
+
+Base `application.properties` does **not** pin a sole H2 strategy — datasource lives in profile files.
 
 H2 console: off by default; `dev` enables. Never expose console in prod.
+
+## Flyway
+
+- Migration: `src/main/resources/db/migration/V1__create_users.sql`
+- Matches `User` → `USERS` (all columns, unique username/email, index on `SESSION_UUID`).
+- SQL targets PostgreSQL. H2 does not run Flyway in this project (disabled in dev/test).
 
 ## Entity highlights (`User`)
 
@@ -19,8 +27,8 @@ H2 console: off by default; `dev` enables. Never expose console in prod.
 | `USERNAME` / `EMAIL` | Unique |
 | `PASSWORD_HASH` | BCrypt |
 | `ROLE` | Enum string: `ADMIN`, `USER`, `READONLY` |
-| `MASTER_TOKEN` | SHA-256 hash of master JWT |
-| `SESSION_TOKEN` | Last issued session JWT (TEXT) |
+| `MASTER_TOKEN` | SHA-256 (Base64) hash of master JWT |
+| `SESSION_TOKEN` | SHA-256 (Base64) hash of session JWT — **not** the plaintext JWT |
 | `SESSION_UUID` | Active session id (claim `uuid`); null = logged out |
 | `STATUS` | `A` / `I` |
 | `FAILED_LOGIN_ATTEMPTS` / `LOCKED_UNTIL` | Lockout |
@@ -42,6 +50,6 @@ H2 console: off by default; `dev` enables. Never expose console in prod.
 
 ## Notes
 
-- Schema is create-drop — not for durable prod data; swap datasource + `ddl-auto` when promoting.
+- Prod schema is owned by Flyway; Hibernate only validates.
 - Register path: `POST /api/users` (ADMIN) via `UserService` — uniqueness → `ConflictException` 409.
 - Do not return `passwordHash` / tokens in list DTOs (`UserSummaryDto`).
