@@ -4,10 +4,13 @@ import co.com.practica.auth.constants.AppConstants;
 import co.com.practica.auth.dto.LoginRequest;
 import co.com.practica.auth.dto.LoginResponse;
 import co.com.practica.auth.dto.RenewTokenRequest;
+import co.com.practica.auth.dto.rbac.ResolvedAuthorities;
 import co.com.practica.auth.entity.User;
 import co.com.practica.auth.enums.Role;
 import co.com.practica.auth.exception.AuthException;
 import co.com.practica.auth.repository.UserRepository;
+import co.com.practica.auth.service.AuthorityResolutionService;
+import co.com.practica.auth.service.SimulatedDirectoryService;
 import co.com.practica.auth.util.JwtUtil;
 import co.com.practica.auth.util.PracticaServiceClient;
 import io.jsonwebtoken.Claims;
@@ -19,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,15 +34,18 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
-    @Mock private UserRepository        userRepository;
-    @Mock private JwtUtil               jwtUtil;
-    @Mock private PasswordEncoder       passwordEncoder;
-    @Mock private PracticaServiceClient practicaServiceClient;
+    @Mock private UserRepository             userRepository;
+    @Mock private JwtUtil                    jwtUtil;
+    @Mock private PasswordEncoder            passwordEncoder;
+    @Mock private PracticaServiceClient      practicaServiceClient;
+    @Mock private AuthorityResolutionService authorityResolutionService;
+    @Mock private SimulatedDirectoryService  simulatedDirectoryService;
 
     @InjectMocks
     private AuthServiceImpl authService;
 
     private User activeUser;
+    private ResolvedAuthorities resolvedAuthorities;
 
     @BeforeEach
     void setUp() {
@@ -51,6 +58,13 @@ class AuthServiceImplTest {
                 .role(Role.ADMIN)
                 .status(AppConstants.STATUS_ACTIVE)
                 .build();
+        resolvedAuthorities = ResolvedAuthorities.builder()
+                .primaryRole("ADMIN")
+                .roles(List.of("ADMIN"))
+                .permissions(List.of("USER_ADMIN"))
+                .groups(List.of("G-Admins"))
+                .build();
+        lenient().when(authorityResolutionService.resolve(any(User.class))).thenReturn(resolvedAuthorities);
     }
 
     // ── login ────────────────────────────────────────────────────────────────
@@ -64,7 +78,8 @@ class AuthServiceImplTest {
         when(passwordEncoder.matches("Admin123!", "$2a$10$hashed")).thenReturn(true);
         when(jwtUtil.generateMasterToken("admin", "ADMIN")).thenReturn("master-token");
         when(jwtUtil.generateSessionUuid()).thenReturn("uuid-1");
-        when(jwtUtil.generateSessionToken(any(), anyString())).thenReturn("session-token");
+        when(jwtUtil.generateSessionToken(any(), anyString(), any(ResolvedAuthorities.class)))
+                .thenReturn("session-token");
         when(jwtUtil.getSessionExpirationMs()).thenReturn(900000L);
         when(userRepository.save(any())).thenReturn(activeUser);
 
@@ -111,7 +126,8 @@ class AuthServiceImplTest {
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         when(jwtUtil.generateMasterToken(anyString(), anyString())).thenReturn("master-token");
         when(jwtUtil.generateSessionUuid()).thenReturn("uuid-1");
-        when(jwtUtil.generateSessionToken(any(), anyString())).thenReturn("session-token");
+        when(jwtUtil.generateSessionToken(any(), anyString(), any(ResolvedAuthorities.class)))
+                .thenReturn("session-token");
         when(jwtUtil.getSessionExpirationMs()).thenReturn(900000L);
         when(userRepository.save(any())).thenReturn(activeUser);
         doThrow(new RuntimeException("Feign error"))
@@ -132,7 +148,8 @@ class AuthServiceImplTest {
         when(jwtUtil.extractSessionClaims("old-token")).thenReturn(claims);
         when(userRepository.findBySessionUuid("old-uuid")).thenReturn(Optional.of(activeUser));
         when(jwtUtil.generateSessionUuid()).thenReturn("new-uuid");
-        when(jwtUtil.generateSessionToken(any(), anyString())).thenReturn("new-session-token");
+        when(jwtUtil.generateSessionToken(any(), anyString(), any(ResolvedAuthorities.class)))
+                .thenReturn("new-session-token");
         when(jwtUtil.getSessionExpirationMs()).thenReturn(900000L);
         when(userRepository.save(any())).thenReturn(activeUser);
 

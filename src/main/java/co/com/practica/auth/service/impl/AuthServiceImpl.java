@@ -5,15 +5,20 @@ import co.com.practica.auth.dto.LoginRequest;
 import co.com.practica.auth.dto.LoginResponse;
 import co.com.practica.auth.dto.ParameterFeignDto;
 import co.com.practica.auth.dto.RenewTokenRequest;
+import co.com.practica.auth.dto.directory.DirectoryBindResult;
+import co.com.practica.auth.dto.rbac.ResolvedAuthorities;
 import co.com.practica.auth.entity.User;
 import co.com.practica.auth.exception.AuthException;
 import co.com.practica.auth.repository.UserRepository;
 import co.com.practica.auth.service.AuthService;
+import co.com.practica.auth.service.AuthorityResolutionService;
+import co.com.practica.auth.service.SimulatedDirectoryService;
 import co.com.practica.auth.util.JwtUtil;
 import co.com.practica.auth.util.PracticaServiceClient;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,73 +32,40 @@ import java.util.Base64;
 /**
  * Default implementation of {@link AuthService}.
  *
- * <h3>Login flow</h3>
- * <ol>
- *   <li>Find active user by username.</li>
- *   <li>Verify password with BCrypt.</li>
- *   <li>Generate masterToken (24 h) and persist to User entity.</li>
- *   <li>Call ms-practica via Feign to store masterToken in PARAMETERS table.</li>
- *   <li>Generate new session UUID.</li>
- *   <li>Generate sessionToken (15 min) with UUID and user claims.</li>
- *   <li>Persist SHA-256 hash of sessionToken, sessionUuid and lastLoginAt.</li>
- *   <li>Return {@link LoginResponse} with plaintext sessionToken to the caller.</li>
- * </ol>
- *
- * <h3>Renewal flow</h3>
- * <ol>
- *   <li>Extract session UUID from submitted sessionToken claims.</li>
- *   <li>Find user by that session UUID.</li>
- *   <li>Verify user is still active.</li>
- *   <li>Rotate UUID — generate a new one (previous session is now invalid).</li>
- *   <li>Generate new sessionToken (15 min) with the new UUID.</li>
- *   <li>Persist SHA-256 hash of sessionToken, sessionUuid and expiry.</li>
- *   <li>Return {@link LoginResponse} with the new plaintext sessionToken.</li>
- * </ol>
+ * <p>Supports {@code app.auth.mode=local|directory}. Both modes issue the same session JWT
+ * with resolved groups / roles / permissions after successful authentication.
  */
 @Log4j2
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final UserRepository        userRepository;
-    private final JwtUtil               jwtUtil;
-    private final PasswordEncoder       passwordEncoder;
-    private final PracticaServiceClient practicaServiceClient;
+    private final UserRepository             userRepository;
+    private final JwtUtil                    jwtUtil;
+    private final PasswordEncoder            passwordEncoder;
+    private final PracticaServiceClient      practicaServiceClient;
+    private final AuthorityResolutionService authorityResolutionService;
+    private final SimulatedDirectoryService  simulatedDirectoryService;
+
+    @Value("${app.auth.mode:" + AppConstants.AUTH_MODE_LOCAL + "}")
+    private String authMode;
 
     @Override
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        log.info("Login attempt");
+        log.info("Login attempt — mode: {}", authMode);
 
-        User user = findActiveUser(request.getUsername());
+        User user = authenticate(request);
+        enforceLockout(user, request.getPassword());
 
-        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
-            log.warn("Login rejected — account locked");
-            throw new AuthException(AppConstants.MSG_ACCOUNT_LOCKED);
-        }
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            int attempts = user.getFailedLoginAttempts() + 1;
-            user.setFailedLoginAttempts(attempts);
-            if (attempts >= AppConstants.MAX_FAILED_ATTEMPTS) {
-                user.setLockedUntil(LocalDateTime.now().plusMinutes(AppConstants.LOCKOUT_DURATION_MINS));
-                log.warn("Account locked after {} failed attempts", attempts);
-            }
-            userRepository.save(user);
-            log.warn("Authentication failed — invalid credentials");
-            throw new AuthException(AppConstants.MSG_INVALID_CREDENTIALS);
-        }
-
-        // Reset failed attempts on successful authentication
-        user.setFailedLoginAttempts(0);
-        user.setLockedUntil(null);
+        ResolvedAuthorities authorities = authorityResolutionService.resolve(user);
 
         String masterToken = jwtUtil.generateMasterToken(user.getUsername(), user.getRole().name());
         user.setMasterToken(hashToken(masterToken));
         storeMasterTokenInPractica(user, masterToken);
 
         String sessionUuid  = jwtUtil.generateSessionUuid();
-        String sessionToken = jwtUtil.generateSessionToken(user, sessionUuid);
+        String sessionToken = jwtUtil.generateSessionToken(user, sessionUuid, authorities);
 
         LocalDateTime now = LocalDateTime.now();
         user.setSessionToken(hashToken(sessionToken));
@@ -102,7 +74,8 @@ public class AuthServiceImpl implements AuthService {
         user.setSessionTokenExpiresAt(now.plusMinutes(AppConstants.SESSION_EXPIRATION_MINS));
         userRepository.save(user);
 
-        log.info("Login successful — username: {} role: {}", user.getUsername(), user.getRole());
+        log.info("Login successful — username: {} role: {} groups: {}",
+                user.getUsername(), user.getRole(), authorities.getGroups());
         return buildLoginResponse(user, sessionToken, AppConstants.MSG_LOGIN_SUCCESS);
     }
 
@@ -126,8 +99,9 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthException(AppConstants.MSG_USER_INACTIVE);
         }
 
+        ResolvedAuthorities authorities = authorityResolutionService.resolve(user);
         String newUuid         = jwtUtil.generateSessionUuid();
-        String newSessionToken = jwtUtil.generateSessionToken(user, newUuid);
+        String newSessionToken = jwtUtil.generateSessionToken(user, newUuid, authorities);
 
         LocalDateTime now = LocalDateTime.now();
         user.setSessionToken(hashToken(newSessionToken));
@@ -169,24 +143,49 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    private User authenticate(LoginRequest request) {
+        if (AppConstants.AUTH_MODE_DIRECTORY.equalsIgnoreCase(authMode)) {
+            DirectoryBindResult bind = simulatedDirectoryService.bind(
+                    request.getUsername(), request.getPassword());
+            return bind.getUser();
+        }
+        return findActiveUser(request.getUsername());
+    }
 
-    /**
-     * Finds an active user by username, throwing {@link AuthException} with a
-     * generic message on failure (prevents user enumeration attacks).
-     */
+    private void enforceLockout(User user, String rawPassword) {
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+            log.warn("Login rejected — account locked");
+            throw new AuthException(AppConstants.MSG_ACCOUNT_LOCKED);
+        }
+
+        if (AppConstants.AUTH_MODE_DIRECTORY.equalsIgnoreCase(authMode)) {
+            user.setFailedLoginAttempts(0);
+            user.setLockedUntil(null);
+            return;
+        }
+
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
+            if (attempts >= AppConstants.MAX_FAILED_ATTEMPTS) {
+                user.setLockedUntil(LocalDateTime.now().plusMinutes(AppConstants.LOCKOUT_DURATION_MINS));
+                log.warn("Account locked after {} failed attempts", attempts);
+            }
+            userRepository.save(user);
+            log.warn("Authentication failed — invalid credentials");
+            throw new AuthException(AppConstants.MSG_INVALID_CREDENTIALS);
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+    }
+
     private User findActiveUser(String username) {
         return userRepository
                 .findByUsernameAndStatus(username, AppConstants.STATUS_ACTIVE)
                 .orElseThrow(() -> new AuthException(AppConstants.MSG_INVALID_CREDENTIALS));
     }
 
-    /**
-     * Extracts JWT claims from a session token.
-     * Accepts expired tokens so renewal can proceed after expiry.
-     *
-     * @throws AuthException if the token is malformed or has an invalid signature.
-     */
     private Claims extractClaimsSafely(String sessionToken) {
         try {
             return jwtUtil.extractSessionClaims(sessionToken);
@@ -196,10 +195,6 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    /**
-     * Builds the {@link LoginResponse} from the given user and token.
-     * Centralizes response construction to avoid duplication between login and renewal.
-     */
     private LoginResponse buildLoginResponse(User user, String sessionToken, String message) {
         return LoginResponse.builder()
                 .sessionToken(sessionToken)
@@ -211,13 +206,6 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    /**
-     * Calls ms-practica via Feign to store the master token in the PARAMETERS table.
-     * Parameter name pattern: {@code MASTER_TOKEN_<USERNAME>}
-     *
-     * <p>Login continues even if ms-practica is unreachable — failure is only logged,
-     * not propagated, to avoid coupling authentication availability to ms-practica.
-     */
     private void storeMasterTokenInPractica(User user, String masterToken) {
         try {
             ParameterFeignDto parameter = ParameterFeignDto.builder()

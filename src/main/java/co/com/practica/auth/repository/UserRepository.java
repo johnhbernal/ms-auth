@@ -2,6 +2,8 @@ package co.com.practica.auth.repository;
 
 import co.com.practica.auth.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -31,6 +33,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     Optional<User> findByUsername(String username);
 
+    Optional<User> findByEmailAndStatus(String email, String status);
+
     /**
      * Finds a user by their current session UUID.
      * Used during token renewal to locate the session owner.
@@ -55,4 +59,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return {@code true} if the email is already registered
      */
     boolean existsByEmail(String email);
+
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.directoryGroups WHERE u.username = :username")
+    Optional<User> findByUsernameWithGroups(@Param("username") String username);
 }

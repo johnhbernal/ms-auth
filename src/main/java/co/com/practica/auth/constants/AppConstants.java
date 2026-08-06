@@ -18,6 +18,9 @@ public final class AppConstants {
 
     // ── Custom JWT Claims ────────────────────────────────────────────────────
     public static final String CLAIM_ROLE       = "role";
+    public static final String CLAIM_ROLES      = "roles";
+    public static final String CLAIM_PERMISSIONS = "permissions";
+    public static final String CLAIM_GROUPS     = "groups";
     public static final String CLAIM_UUID       = "uuid";
     public static final String CLAIM_FULL_NAME  = "fullName";
     public static final String CLAIM_EMAIL      = "email";
@@ -62,6 +65,20 @@ public final class AppConstants {
     public static final int    MAX_FAILED_ATTEMPTS    = 5;
     public static final int    LOCKOUT_DURATION_MINS  = 15;
     public static final String MSG_ACCOUNT_LOCKED     = "Account temporarily locked due to too many failed attempts. Try again in 15 minutes.";
+
+    // ── Auth mode (local vs simulated directory) ─────────────────────────────
+    public static final String AUTH_MODE_LOCAL     = "local";
+    public static final String AUTH_MODE_DIRECTORY = "directory";
+
+    // ── Password reset ───────────────────────────────────────────────────────
+    public static final int    PASSWORD_RESET_EXPIRATION_MINS = 30;
+    public static final String MSG_FORGOT_PASSWORD_SENT       =
+            "If an account exists for that email, password reset instructions have been sent.";
+    public static final String MSG_PASSWORD_RESET_SUCCESS     = "Password has been reset successfully";
+    public static final String MSG_RESET_TOKEN_INVALID        = "Invalid or expired reset token";
+    public static final String MSG_ADMIN_PASSWORD_SET         = "Password updated and active sessions revoked";
+    public static final String MSG_ADMIN_RESET_TOKEN_ISSUED   =
+            "One-time reset token issued (see resetToken in dev/stack only)";
 
     // ── Logout ───────────────────────────────────────────────────────────────
     public static final String MSG_LOGOUT_SUCCESS = "Logged out successfully";

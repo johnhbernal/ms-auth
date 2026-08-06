@@ -85,6 +85,7 @@ powershell -File scripts/ci-local.ps1
 | `SPRING_DATASOURCE_USERNAME` | prod | DB user |
 | `SPRING_DATASOURCE_PASSWORD` | prod | DB password |
 | `APP_CORS_ALLOWED_ORIGINS` | optional | Comma-separated origins (default `http://localhost:3000`) |
+| `APP_AUTH_MODE` | optional | `local` (default) or `directory` (simulated AD bind) |
 | `MS_PRACTICA_URL` | optional | Feign base URL (default `http://localhost:8082`) |
 | `SPRING_PROFILES_ACTIVE` | docker | Use `prod` |
 | `JAVA_OPTS` | optional | JVM flags |
@@ -114,16 +115,26 @@ See `.env.example` for a full template.
 - Actuator exposes **health only**; `show-details=never`.
 - Swagger / H2 console off outside `dev`.
 
-## Seed users (dev only)
+## Seed users (dev / stack only)
 
-| User | Password | Role |
-|------|----------|------|
-| admin | Admin123! | ADMIN |
-| user | User123! | USER |
-| reader | Read123! | READONLY |
+| User | Password | Primary role | Groups → AppRole | Notes |
+|------|----------|--------------|------------------|-------|
+| admin | Admin123! | ADMIN | G-Admins → ADMIN | All permissions |
+| user | User123! | USER | G-Operators → OPERATOR | Parámetros + directory read |
+| reader | Read123! | READONLY | G-Readers → READONLY | Parámetros read |
+| seller | Seller123! | USER | G-Vendors → VENDEDOR | **Inventario:** price READ only |
 
-Loaded by `DataInitializer` when profile `dev` is active. **Not for production.**
+Loaded by `DataInitializer` when profile `dev` or `stack` is active. **Not for production.**
+
+## AuthN / AuthZ / module permissions (portfolio)
+
+| Concept | Where |
+|---------|--------|
+| Simulated AD groups + DN | `.ai/ACTIVE-DIRECTORY.md` |
+| Module-scoped AuthZ (VENDEDOR / inventario) | `/api/demo/inventario/**` + admin RBAC UI |
+| Password reset (one-time token, no plaintext email) | `POST /api/auth/forgot-password`, `/reset-password` |
+| Create permission/role APIs | `POST /api/rbac/permissions`, `POST /api/rbac/roles` |
 
 ## Agent docs
 
-See [`.ai/AGENTS.md`](.ai/AGENTS.md) for security, database, and CI specialist notes.
+See [`.ai/AGENTS.md`](.ai/AGENTS.md) for security, database, and CI specialist notes. Full AD/RBAC guide: [`.ai/ACTIVE-DIRECTORY.md`](.ai/ACTIVE-DIRECTORY.md).

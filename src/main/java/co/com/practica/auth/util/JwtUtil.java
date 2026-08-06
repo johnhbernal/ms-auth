@@ -1,6 +1,7 @@
 package co.com.practica.auth.util;
 
 import co.com.practica.auth.constants.AppConstants;
+import co.com.practica.auth.dto.rbac.ResolvedAuthorities;
 import co.com.practica.auth.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -14,6 +15,7 @@ import javax.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -106,16 +108,17 @@ public class JwtUtil {
     }
 
     /**
-     * Generates a session token (15 min) with user claims and a session UUID.
+     * Generates a session token (15 min) with user claims, RBAC arrays, and session UUID.
      *
      * @param user        the authenticated user
      * @param sessionUuid unique identifier for this session
+     * @param authorities resolved groups / roles / permissions (may be null for legacy callers)
      * @return signed session JWT
      */
-    public String generateSessionToken(User user, String sessionUuid) {
+    public String generateSessionToken(User user, String sessionUuid, ResolvedAuthorities authorities) {
         Date now        = new Date();
         Date expiration = new Date(now.getTime() + sessionExpirationMs);
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setSubject(user.getUsername())
                 .claim(AppConstants.CLAIM_UUID,       sessionUuid)
                 .claim(AppConstants.CLAIM_FULL_NAME,  user.getFullName())
@@ -123,9 +126,20 @@ public class JwtUtil {
                 .claim(AppConstants.CLAIM_ROLE,       user.getRole().name())
                 .claim(AppConstants.CLAIM_TOKEN_TYPE, AppConstants.TOKEN_TYPE_SESSION)
                 .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(sessionKey)
-                .compact();
+                .setExpiration(expiration);
+
+        if (authorities != null) {
+            builder.claim(AppConstants.CLAIM_ROLES, authorities.getRoles())
+                   .claim(AppConstants.CLAIM_PERMISSIONS, authorities.getPermissions())
+                   .claim(AppConstants.CLAIM_GROUPS, authorities.getGroups());
+        }
+
+        return builder.signWith(sessionKey).compact();
+    }
+
+    /** Backward-compatible overload — primary role only (no RBAC arrays). */
+    public String generateSessionToken(User user, String sessionUuid) {
+        return generateSessionToken(user, sessionUuid, null);
     }
 
     /**

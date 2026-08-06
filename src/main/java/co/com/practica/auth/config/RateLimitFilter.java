@@ -28,7 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int      LOGIN_CAPACITY  = 10;
+    private static final int      LOGIN_CAPACITY          = 10;
+    private static final int      FORGOT_PASSWORD_CAPACITY = 5;
     private static final Duration REFILL_DURATION = Duration.ofMinutes(1);
 
     private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
@@ -39,21 +40,36 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         if ("/api/auth/login".equals(request.getRequestURI())
                 && "POST".equalsIgnoreCase(request.getMethod())) {
-            String ip = getClientIp(request);
-            Bucket bucket = buckets.computeIfAbsent(ip, k ->
-                Bucket.builder()
-                    .addLimit(Bandwidth.classic(LOGIN_CAPACITY,
-                        Refill.intervally(LOGIN_CAPACITY, REFILL_DURATION)))
-                    .build());
+            applyRateLimit(request, response, filterChain, LOGIN_CAPACITY);
+            return;
+        }
+        if ("/api/auth/forgot-password".equals(request.getRequestURI())
+                && "POST".equalsIgnoreCase(request.getMethod())) {
+            applyRateLimit(request, response, filterChain, FORGOT_PASSWORD_CAPACITY);
+            return;
+        }
+        filterChain.doFilter(request, response);
+    }
 
-            if (!bucket.tryConsume(1)) {
-                log.warn("Rate limit exceeded for IP: {}", ip);
-                response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.getWriter().write(
-                    "{\"code\":\"429\",\"description\":\"Too many login attempts. Try again in a minute.\"}");
-                return;
-            }
+    private void applyRateLimit(HttpServletRequest request,
+                                HttpServletResponse response,
+                                FilterChain filterChain,
+                                int capacity) throws ServletException, IOException {
+        String ip = getClientIp(request);
+        String bucketKey = request.getRequestURI() + ":" + ip;
+        Bucket bucket = buckets.computeIfAbsent(bucketKey, k ->
+            Bucket.builder()
+                .addLimit(Bandwidth.classic(capacity,
+                    Refill.intervally(capacity, REFILL_DURATION)))
+                .build());
+
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded for IP: {} on {}", ip, request.getRequestURI());
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write(
+                "{\"code\":\"429\",\"description\":\"Too many requests. Try again in a minute.\"}");
+            return;
         }
         filterChain.doFilter(request, response);
     }

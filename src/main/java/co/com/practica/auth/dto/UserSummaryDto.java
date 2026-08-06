@@ -5,16 +5,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserSummaryDto {
 
-    private Long   id;
-    private String username;
-    private String fullName;
-    private String email;
-    private String role;
-    private String status;
+    private Long         id;
+    private String       username;
+    private String       fullName;
+    private String       email;
+    private String       role;
+    private String       status;
+    private List<String> groups;
 }

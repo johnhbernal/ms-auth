@@ -3,20 +3,20 @@ package co.com.practica.auth.config;
 import co.com.practica.auth.constants.AppConstants;
 import co.com.practica.auth.entity.User;
 import co.com.practica.auth.repository.UserRepository;
+import co.com.practica.auth.security.SecurityAuthorityMapper;
+import co.com.practica.auth.service.AuthorityResolutionService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    private final UserRepository             userRepository;
+    private final AuthorityResolutionService authorityResolutionService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -32,7 +32,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 true,
                 true,
                 true,
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                SecurityAuthorityMapper.fromResolved(authorityResolutionService.resolve(user))
         );
     }
 }

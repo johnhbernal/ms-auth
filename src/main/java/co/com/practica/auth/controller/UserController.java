@@ -1,7 +1,9 @@
 package co.com.practica.auth.controller;
 
+import co.com.practica.auth.dto.AdminResetPasswordRequest;
 import co.com.practica.auth.dto.ApiResponse;
 import co.com.practica.auth.dto.RegisterRequest;
+import org.springframework.web.bind.annotation.PathVariable;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -42,4 +44,9 @@ public interface UserController {
         description = "Returns the caller's username, role, fullName and email extracted from the JWT. No DB call."
     )
     ResponseEntity<ApiResponse> me();
+
+    @Operation(summary = "Admin reset password", description = "Sets a new password (no plaintext email).")
+    ResponseEntity<ApiResponse> adminResetPassword(
+            @PathVariable Long id,
+            @Valid AdminResetPasswordRequest request);
 }

@@ -1,40 +1,113 @@
-# ACTIVE-DIRECTORY — future LDAP (not implemented)
+# ACTIVE-DIRECTORY — simulated RBAC (implemented)
 
-> Guidance only. ms-auth today is **local User + BCrypt**. Do not add AD code unless product asks.
+> **Portfolio / practice project.** Real LDAP is **not** wired. This module teaches AuthN vs AuthZ using AD-style naming (`distinguishedName`, `memberOf`) backed by PostgreSQL/H2 tables.
 
-## Goal
+## AuthN vs AuthZ
 
-Optional enterprise login against Active Directory / LDAP while keeping session JWT issuance in ms-auth.
+| Layer | Question | ms-auth implementation |
+|-------|----------|------------------------|
+| **Authentication (AuthN)** | Who are you? | BCrypt password check (`local`) or `SimulatedDirectoryService.bind()` (`directory` mode). Same users/passwords; directory mode logs DN + `memberOf`. |
+| **Authorization (AuthZ)** | What may you do? | `User` → `DirectoryGroup` → `AppRole` → `Permission(module, code)`. JWT carries `role`, `roles[]`, `permissions[]`, `groups[]`. Spring authorities: `ROLE_*`, `PERM_*`. |
 
-## Recommended wiring (Spring Boot 2.7)
+## Module-scoped permissions (complete demo)
 
-1. Dependency: `spring-boot-starter-data-ldap` (and/or `spring-security-ldap`).
-2. Properties (env-driven):
-   - `spring.ldap.urls`
-   - `spring.ldap.base`
-   - `spring.ldap.username` / `password` (bind DN) **or** manager-less pattern
-3. `AuthenticationManager` with `LdapAuthenticationProvider` **or** custom `AuthenticationProvider` that:
-   - Binds user DN (`uid={0},ou=people` / `sAMAccountName` pattern for AD)
-   - On success, loads/creates local `User` for roles + session UUID store
-4. Keep **JWT dual-secret + session UUID** as the API auth mechanism — LDAP authenticates login only; do not put LDAP password on every request.
+Permissions are tagged with a logical **module** (`INVENTARIO`, `PARAMETROS`, `RBAC`, …). Example matrix:
 
-## AD-specific notes
+| Permission | Module | VENDEDOR | ADMIN |
+|------------|--------|----------|-------|
+| `INVENTARIO_PRECIO_READ` | INVENTARIO | ✅ | ✅ |
+| `INVENTARIO_PRECIO_WRITE` | INVENTARIO | ❌ | ✅ |
+| `INVENTARIO_STOCK_WRITE` | INVENTARIO | ❌ | ✅ |
 
-- Prefer LDAPS / StartTLS; never plain LDAP in prod.
-- Map groups → `Role` carefully (ADMIN rare).
-- Lockout: coordinate with AD lockout policy; avoid double-punishing with local counter unless product requires.
-- Feign master-token store remains local-user keyed.
+Demo API (enforced with `@PreAuthorize`):
 
-## Migration sketch
+| Method | Path | Authority |
+|--------|------|-----------|
+| GET | `/api/demo/inventario/productos` | `PERM_INVENTARIO_PRECIO_READ` or `ROLE_ADMIN` |
+| PUT | `/api/demo/inventario/productos/precio` | `PERM_INVENTARIO_PRECIO_WRITE` or `ROLE_ADMIN` |
+| PUT | `/api/demo/inventario/productos/stock` | `PERM_INVENTARIO_STOCK_WRITE` or `ROLE_ADMIN` |
 
-| Phase | Work |
-|-------|------|
-| 1 | Feature flag `app.auth.mode=LOCAL\|LDAP` |
-| 2 | LDAP provider behind flag; LOCAL default |
-| 3 | Provisioning: sync email/fullName on first login |
-| 4 | IT with embedded LDAP or Testcontainers |
+Admin UI (ms-frontend `/admin/rbac`) can **create** permissions (with module), roles, groups, assign memberships, and attach/detach permissions — not only list seed data.
 
-## Explicit non-goals now
+## Configuration
 
-- No AD dependency in `pom.xml` until approved.
-- No inventing corporate DN schemas without customer input.
+```properties
+# application.properties
+app.auth.mode=${APP_AUTH_MODE:local}
+```
+
+| Mode | Behaviour |
+|------|-----------|
+| `local` (default) | `UserRepository` + BCrypt + account lockout |
+| `directory` | `SimulatedDirectoryService.bind()` then identical session JWT issuance |
+
+Real AD would replace `SimulatedDirectoryServiceImpl` with `LdapContext` / StartTLS — **out of scope** until product approval.
+
+## Data model
+
+```
+User ──memberOf──► DirectoryGroup ──grants──► AppRole ──includes──► Permission(module)
+  │
+  └── role (enum ADMIN/USER/READONLY) — legacy primary role for ms-practica Feign
+```
+
+| Entity | Table | Notes |
+|--------|-------|-------|
+| `Permission` | `PERMISSIONS` | `CODE` + `MODULE` (Flyway V2/V4) |
+| `AppRole` | `APP_ROLES` | Aggregates permissions (ADMIN, VENDEDOR, …) |
+| `DirectoryGroup` | `DIRECTORY_GROUPS` | AD-style `distinguishedName`, grants `AppRole`s |
+| M2M | `USER_GROUPS`, `GROUP_ROLES`, `ROLE_PERMISSIONS` | Flyway V2 (Postgres prod) |
+
+## Seed matrix (profiles `dev`, `stack`)
+
+| User | Password | User.role | Group | AppRole | Key permissions |
+|------|----------|-----------|-------|---------|-----------------|
+| admin | Admin123! | ADMIN | G-Admins | ADMIN | all |
+| user | User123! | USER | G-Operators | OPERATOR | PARAMETRO_*, DIRECTORY_READ |
+| reader | Read123! | READONLY | G-Readers | READONLY | PARAMETRO_READ |
+| seller | Seller123! | USER | G-Vendors | VENDEDOR | `INVENTARIO_PRECIO_READ` only |
+
+## JWT claims (session token)
+
+| Claim | Example |
+|-------|---------|
+| `role` | `ADMIN` (primary — ms-practica compat) |
+| `roles` | `["ADMIN","OPERATOR",…]` |
+| `permissions` | `["PARAMETRO_READ","INVENTARIO_PRECIO_READ",…]` (bare codes; Spring adds `PERM_`) |
+| `groups` | `["G-Admins",…]` |
+
+## Password reset (no plaintext email)
+
+| Flow | Path | Notes |
+|------|------|-------|
+| Self-service forgot | `POST /api/auth/forgot-password` | One-time token; generic response; token logged in `dev`/`stack` |
+| Self-service reset | `POST /api/auth/reset-password` | Consumes token; sets BCrypt hash |
+| Admin reset | `POST /api/users/{id}/reset-password` | Admin AuthZ; revokes session |
+
+Never emails the new password in clear text.
+
+## APIs
+
+| Method | Path | Access |
+|--------|------|--------|
+| GET | `/api/directory/me` | Authenticated — DN, memberOf, roles, permissions |
+| GET/POST | `/api/rbac/permissions` | Read: `DIRECTORY_READ`; Create: `GROUP_ADMIN` |
+| GET/POST | `/api/rbac/roles` | Read: `DIRECTORY_READ`; Create: `GROUP_ADMIN` |
+| GET/POST | `/api/rbac/groups` | Read: `DIRECTORY_READ`; Create: `GROUP_ADMIN` |
+| POST/DELETE | `/api/rbac/groups/{id}/members/{userId}` | `GROUP_ADMIN` |
+| POST | `/api/rbac/groups/{id}/roles/{roleName}` | `GROUP_ADMIN` |
+| POST/DELETE | `/api/rbac/roles/{roleName}/permissions/{permCode}` | `GROUP_ADMIN` |
+| GET/PUT | `/api/demo/inventario/**` | Module permissions above |
+
+## Future LDAP migration (not implemented)
+
+1. Add `spring-boot-starter-data-ldap` behind feature flag.
+2. Replace `SimulatedDirectoryServiceImpl` with LDAP bind provider.
+3. Keep JWT + `sessionUuid` revocation model unchanged.
+4. Provision/sync local `User` row on first LDAP login.
+
+## Explicit non-goals
+
+- No AD dependency in `pom.xml`.
+- No corporate DN schema without customer input.
+- No Redis-backed session store.

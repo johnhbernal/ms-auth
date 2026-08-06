@@ -3,10 +3,13 @@ package co.com.practica.auth.controller.impl;
 import co.com.practica.auth.constants.AppConstants;
 import co.com.practica.auth.controller.AuthController;
 import co.com.practica.auth.dto.ApiResponse;
+import co.com.practica.auth.dto.ForgotPasswordRequest;
 import co.com.practica.auth.dto.LoginRequest;
 import co.com.practica.auth.dto.LoginResponse;
 import co.com.practica.auth.dto.RenewTokenRequest;
+import co.com.practica.auth.dto.ResetPasswordRequest;
 import co.com.practica.auth.service.AuthService;
+import co.com.practica.auth.service.PasswordResetService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpHeaders;
@@ -36,7 +39,8 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 public class AuthControllerImpl implements AuthController {
 
-    private final AuthService authService;
+    private final AuthService          authService;
+    private final PasswordResetService passwordResetService;
 
     @Override
     public ResponseEntity<ApiResponse> login(@Valid LoginRequest request) {
@@ -98,5 +102,17 @@ public class AuthControllerImpl implements AuthController {
             return token.trim();
         }
         return null;
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse> forgotPassword(@Valid ForgotPasswordRequest request) {
+        log.info("POST /api/auth/forgot-password");
+        return ResponseEntity.ok(ApiResponse.ok(passwordResetService.forgotPassword(request)));
+    }
+
+    @Override
+    public ResponseEntity<ApiResponse> resetPassword(@Valid ResetPasswordRequest request) {
+        log.info("POST /api/auth/reset-password");
+        return ResponseEntity.ok(ApiResponse.ok(passwordResetService.resetPassword(request)));
     }
 }

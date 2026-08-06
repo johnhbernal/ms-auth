@@ -1,9 +1,12 @@
 package co.com.practica.auth.config;
 
 import co.com.practica.auth.constants.AppConstants;
+import co.com.practica.auth.dto.rbac.ResolvedAuthorities;
 import co.com.practica.auth.entity.User;
 import co.com.practica.auth.enums.Role;
 import co.com.practica.auth.repository.UserRepository;
+import co.com.practica.auth.service.AuthorityResolutionService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,19 +15,36 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UserDetailsServiceImplTest {
 
-    @Mock private UserRepository userRepository;
+    @Mock private UserRepository             userRepository;
+    @Mock private AuthorityResolutionService authorityResolutionService;
 
     @InjectMocks
     private UserDetailsServiceImpl userDetailsService;
+
+    @BeforeEach
+    void stubAuthorities() {
+        lenient().when(authorityResolutionService.resolve(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            return ResolvedAuthorities.builder()
+                    .primaryRole(u.getRole().name())
+                    .roles(List.of(u.getRole().name()))
+                    .permissions(List.of())
+                    .groups(List.of())
+                    .build();
+        });
+    }
 
     @Test
     void loadUserByUsername_activeUser_returnsEnabledUserDetails() {

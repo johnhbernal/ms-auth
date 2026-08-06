@@ -16,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,12 +61,19 @@ class JwtAuthFilterTest {
         verifyNoInteractions(jwtUtil);
     }
 
+    private Claims claimsWithPrimaryRole(String username, String role, String uuid) {
+        Claims claims = mock(Claims.class);
+        when(claims.getSubject()).thenReturn(username);
+        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn(uuid);
+        when(claims.get(AppConstants.CLAIM_ROLE, String.class)).thenReturn(role);
+        when(claims.get(AppConstants.CLAIM_ROLES, List.class)).thenReturn(null);
+        when(claims.get(AppConstants.CLAIM_PERMISSIONS, List.class)).thenReturn(null);
+        return claims;
+    }
+
     @Test
     void validToken_setsSecurityContext() throws Exception {
-        Claims claims = mock(Claims.class);
-        when(claims.getSubject()).thenReturn("admin");
-        when(claims.get(AppConstants.CLAIM_ROLE, String.class)).thenReturn("ADMIN");
-        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("uuid-1");
+        Claims claims = claimsWithPrimaryRole("admin", "ADMIN", "uuid-1");
 
         when(jwtUtil.isSessionTokenValid("valid-token")).thenReturn(true);
         when(jwtUtil.extractSessionClaims("valid-token")).thenReturn(claims);
@@ -104,10 +112,7 @@ class JwtAuthFilterTest {
 
     @Test
     void validToken_differentRole_authorityMappedCorrectly() throws Exception {
-        Claims claims = mock(Claims.class);
-        when(claims.getSubject()).thenReturn("reader");
-        when(claims.get(AppConstants.CLAIM_ROLE, String.class)).thenReturn("READONLY");
-        when(claims.get(AppConstants.CLAIM_UUID, String.class)).thenReturn("uuid-2");
+        Claims claims = claimsWithPrimaryRole("reader", "READONLY", "uuid-2");
 
         when(jwtUtil.isSessionTokenValid("readonly-token")).thenReturn(true);
         when(jwtUtil.extractSessionClaims("readonly-token")).thenReturn(claims);

@@ -4,10 +4,14 @@ import co.com.practica.auth.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * JPA entity mapped to the {@code USERS} table.
@@ -101,6 +105,20 @@ public class User {
     /** When set, the account is locked until this timestamp. */
     @Column(name = "LOCKED_UNTIL")
     private LocalDateTime lockedUntil;
+
+    /**
+     * Simulated AD group membership ({@code memberOf}).
+     * Groups grant {@link AppRole}s → {@link Permission}s at login.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "USER_GROUPS",
+            joinColumns = @JoinColumn(name = "USER_ID"),
+            inverseJoinColumns = @JoinColumn(name = "GROUP_ID"))
+    @Builder.Default
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private Set<DirectoryGroup> directoryGroups = new HashSet<>();
 
     /**
      * Sets {@code createdAt} automatically before the first persist,

@@ -20,8 +20,11 @@
 | [SPRINGBOOT.md](SPRINGBOOT.md) | Boot 2.7 patterns, Security, profiles, Feign |
 | [SECURITY.md](SECURITY.md) | Dual JWT secrets, lockout, rate limit, OWASP |
 | [DATABASE.md](DATABASE.md) | User entity, session UUID revocation model |
-| [ACTIVE-DIRECTORY.md](ACTIVE-DIRECTORY.md) | Future LDAP/AD (not implemented) |
+| [ACTIVE-DIRECTORY.md](ACTIVE-DIRECTORY.md) | AD sim + module RBAC (VENDEDOR/INVENTARIO) |
+| [QA.md](QA.md) | JUnit gates · Kilele: API ≠ visual |
 | [CI.md](CI.md) | GitHub Actions gates |
+
+**Council stack:** `practica-stack/.ai/AGENTS.md`
 
 ## Scope rules
 

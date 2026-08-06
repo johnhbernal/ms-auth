@@ -1,8 +1,10 @@
 package co.com.practica.auth.controller;
 
 import co.com.practica.auth.dto.ApiResponse;
+import co.com.practica.auth.dto.ForgotPasswordRequest;
 import co.com.practica.auth.dto.LoginRequest;
 import co.com.practica.auth.dto.RenewTokenRequest;
+import co.com.practica.auth.dto.ResetPasswordRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -63,4 +65,12 @@ public interface AuthController {
     )
     @PostMapping("/logout")
     ResponseEntity<ApiResponse> logout(HttpServletRequest request);
+
+    @Operation(summary = "Forgot password", description = "Always returns generic success (no user enumeration)")
+    @PostMapping("/forgot-password")
+    ResponseEntity<ApiResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request);
+
+    @Operation(summary = "Reset password with one-time token")
+    @PostMapping("/reset-password")
+    ResponseEntity<ApiResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request);
 }
