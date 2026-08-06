@@ -72,3 +72,7 @@ application.dev.yml
 application-prod.yml
 application.prod.yml
 secrets/
+
+build-local.log
+target/
+

@@ -119,9 +119,18 @@ class AuthControllerIntegrationTest {
     @Test
     @Order(10)
     void validateToken_validToken_returns200True() throws Exception {
-        mockMvc.perform(get(VALIDATE_URL).param("token", sessionToken))
+        // Prefer Authorization header (OWASP — avoid JWT in query string)
+        mockMvc.perform(get(VALIDATE_URL).header("Authorization", "Bearer " + sessionToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("200"))
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
+    @Order(10)
+    void validateToken_queryParamStillAcceptedForCompat() throws Exception {
+        mockMvc.perform(get(VALIDATE_URL).param("token", sessionToken))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(true));
     }
 

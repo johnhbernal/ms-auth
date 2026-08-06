@@ -23,9 +23,14 @@ public class CacheControlFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        response.setHeader("Cache-Control", "no-store");
+        // OWASP: prevent caching of auth responses + baseline hardening headers
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         response.setHeader("Pragma", "no-cache");
         response.setHeader("Expires", "0");
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("X-Frame-Options", "SAMEORIGIN");
+        response.setHeader("Referrer-Policy", "no-referrer");
+        response.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
         filterChain.doFilter(request, response);
     }
 }

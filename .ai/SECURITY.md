@@ -48,6 +48,14 @@ Used by: `JwtAuthFilter`, `AuthServiceImpl.isSessionTokenValid`. Renew rotates U
 
 `APP_CORS_ALLOWED_ORIGINS` comma-separated. Credentials false. Tighten in prod.
 
+## IDE inspections vs real defects
+
+| IDE message | Reality |
+|-------------|---------|
+| `Cannot resolve symbol 'String'` | **JDK not configured** — install Temurin 17 (`scripts/setup-local.ps1`) and set Project SDK / `java.jdt.ls.java.home` (see `.vscode/settings.json`). Not an OWASP gap. |
+| `Method renewToken/validateToken is never used` | **False positive** without Spring awareness — methods are MVC entry points. Mappings live on `AuthController` interface so tooling can see them. Install Spring Boot IDE extension. |
+| `Typo: practica` | Domain name `co.com.practica` — add to spell dictionary (`.vscode/settings.json` `cSpell.words`). |
+
 ## Out of scope (do not fake)
 
 - Active Directory / LDAP (see ACTIVE-DIRECTORY.md)

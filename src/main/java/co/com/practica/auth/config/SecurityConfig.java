@@ -41,11 +41,11 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
+    /** Public auth endpoints. Logout requires Bearer (authenticated). */
     private static final String[] PUBLIC_ENDPOINTS = {
         "/api/auth/login",
         "/api/auth/renew",
         "/api/auth/validate",
-        "/api/auth/logout",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",
@@ -83,12 +83,14 @@ public class SecurityConfig {
             .headers()
                 .contentTypeOptions().and()
                 .xssProtection().and()
+                // sameOrigin() already returns HeadersConfigurer — do not .and() before HSTS
                 .frameOptions().sameOrigin()
                 .httpStrictTransportSecurity()
                     .includeSubDomains(true)
                     .maxAgeInSeconds(31536000)
+                    .and()
                 .and()
-            .and()
+            // Referrer-Policy / Permissions-Policy: CacheControlFilter (OWASP headers)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
